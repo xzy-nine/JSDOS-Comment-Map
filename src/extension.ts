@@ -53,65 +53,63 @@ class JSDocOutlineProvider implements vscode.TreeDataProvider<JSDocTreeItem> {
     }
 }
 
-function parseJSDocComments(text: string): JSDocNode[] {
-    const items: JSDocNode[] = [];
-    const classMap: Record<string, JSDocNode> = {};
-    // 先处理所有 class 及其成员
-    const classBodyRegex = /\/\*\*([\s\S]*?)\*\/\s*class\s+([\w$]+)[^{]*{([\s\S]*?)^}/gm;
-    let match: RegExpExecArray | null;
-    while ((match = classBodyRegex.exec(text)) !== null) {
-        const [, classComment, className, classBody] = match;
-        const classStart = text.slice(0, match.index).split('\n').length - 1;
-        const classLines = classComment.split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
-        const classSummary = classLines.find(l => l && !l.startsWith('@')) || '';
-        const classTags = classLines.filter(l => l.startsWith('@')).join('\n');
-        const classNode: JSDocNode = {
-            label: classSummary,
-            description: `class ${className}`,
-            tooltip: classTags,
-            line: classStart,
-            children: []
-        };
-        // 解析类体内成员
-        const memberRegex = /\/\*\*([\s\S]*?)\*\/\s*(constructor|[\w$]+)\s*\(([^)]*)\)/g;
-        let m: RegExpExecArray | null;
-        while ((m = memberRegex.exec(classBody)) !== null) {
-            const [full, memberComment, memberName] = m;
-            const memberLine = classStart + classBody.slice(0, m.index).split('\n').length;
-            const memberLines = memberComment.split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
-            const memberSummary = memberLines.find(l => l && !l.startsWith('@')) || '';
-            const memberTags = memberLines.filter(l => l.startsWith('@')).join('\n');
-            const memberNode: JSDocNode = {
-                label: memberSummary,
-                description: memberName === 'constructor' ? 'constructor' : `method ${memberName}`,
-                tooltip: memberTags,
-                line: memberLine
-            };
-            classNode.children!.push(memberNode);
-        }
-        classMap[className] = classNode;
-        items.push(classNode);
-    }
+async function generateJSDocOutlineFromSymbols(document: vscode.TextDocument): Promise<JSDocNode[]> {
+    // 获取文档结构大纲
+    const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+        'vscode.executeDocumentSymbolProvider',
+        document.uri
+    );
+    if (!symbols) return [];
 
-    // 处理顶级函数等
-    const topRegex = /\/\*\*([\s\S]*?)\*\/\s*(export\s+)?(async\s+)?(function|const|let|var)\s+([\w$]+)/g;
-    while ((match = topRegex.exec(text)) !== null) {
-        const [, comment, , , type, name] = match;
-        // 跳过已被 class 处理的内容
-        if (Object.values(classMap).some(cls => match!.index > text.indexOf(cls.description))) continue;
-        const line = text.slice(0, match.index).split('\n').length - 1;
-        const lines = comment.split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
-        const summary = lines.find(l => l && !l.startsWith('@')) || '';
-        const tags = lines.filter(l => l.startsWith('@')).join('\n');
-        const signature = `${type} ${name}`;
-        items.push({
+    // 递归处理 symbol
+    function processSymbol(symbol: vscode.DocumentSymbol): JSDocNode | null {
+        // 获取 symbol 前的 JSDoc 注释
+        const startLine = symbol.range.start.line;
+        let jsdoc = '';
+        for (let i = startLine - 1; i >= 0; i--) {
+            const lineText = document.lineAt(i).text.trim();
+            if (lineText.startsWith('/**')) {
+                // 找到 JSDoc 起始
+                let commentLines = [lineText];
+                for (let j = i + 1; j < startLine; j++) {
+                    commentLines.push(document.lineAt(j).text.trim());
+                }
+                jsdoc = commentLines.join('\n');
+                break;
+            } else if (lineText.startsWith('*/') || lineText.startsWith('*')) {
+                // 继续向上找
+                continue;
+            } else if (lineText === '' || lineText.startsWith('//')) {
+                continue;
+            } else {
+                // 非注释内容，终止
+                break;
+            }
+        }
+        if (!jsdoc) return null;
+        // 解析 JSDoc 内容
+        const comment = jsdoc.replace(/^\/\*\*|\*\/$/g, '').split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
+        const summary = comment.find(l => l && !l.startsWith('@')) || '';
+        const tags = comment.filter(l => l.startsWith('@')).join('\n');
+        const node: JSDocNode = {
             label: summary,
-            description: signature,
+            description: symbol.name + (symbol.detail ? ' ' + symbol.detail : ''),
             tooltip: tags,
-            line
-        });
+            line: symbol.range.start.line,
+        };
+        if (symbol.children && symbol.children.length > 0) {
+            const children = symbol.children.map(processSymbol).filter(Boolean) as JSDocNode[];
+            if (children.length > 0) node.children = children;
+        }
+        return node;
     }
-    return items;
+    // 只收录有 JSDoc 的 symbol
+    const result: JSDocNode[] = [];
+    for (const sym of symbols) {
+        const node = processSymbol(sym);
+        if (node) result.push(node);
+    }
+    return result;
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -176,12 +174,13 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    // 修改 updateOutline，使用新方法
     function updateOutline() {
         const editor = vscode.window.activeTextEditor;
         if (editor && (editor.document.languageId === 'javascript' || editor.document.languageId === 'typescript')) {
-            const text = editor.document.getText();
-            const items = parseJSDocComments(text);
-            outlineProvider.refresh(items);
+            generateJSDocOutlineFromSymbols(editor.document).then(items => {
+                outlineProvider.refresh(items);
+            });
         } else {
             outlineProvider.refresh([]);
         }

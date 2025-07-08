@@ -1,29 +1,41 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Util = void 0;
-exports.factorial = factorial;
 /**
- * 计算阶乘
- * @param n 数字
- * @returns 阶乘结果
+ * 主类A
+ * @classdesc 这是主类A的描述
  */
-function factorial(n) {
-    if (n <= 1)
-        return 1;
-    return n * factorial(n - 1);
-}
-/**
- * 工具类
- */
-class Util {
+class MainA {
     /**
-     * 反转字符串
-     * @param str 输入字符串
-     * @returns 反转结果
+     * 构造函数
      */
-    static reverse(str) {
-        return str.split('').reverse().join('');
-    }
+    constructor() {}
+
+    /**
+     * 方法A1
+     */
+    methodA1() {}
+
+    // 没有JSDoc的方法A2
+    methodA2() {}
+    /**                 
+     * 方法A3
+     * @returns {string} 返回一个字符串
+     */
 }
-exports.Util = Util;
-//# sourceMappingURL=demo.js.map
+
+// 没有JSDoc的主类B
+class MainB {
+    methodB1() {}
+    /**
+     * 方法B2
+     */
+    methodB2() {}
+}
+
+/**
+ * 主类C
+ */
+class MainC {
+    /**
+     * 方法C1
+     */
+    methodC1() {}
+}

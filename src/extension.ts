@@ -62,7 +62,7 @@ async function generateJSDocOutlineFromSymbols(document: vscode.TextDocument): P
     if (!symbols) return [];
 
     // 递归处理 symbol
-    function processSymbol(symbol: vscode.DocumentSymbol): JSDocNode | null {
+    function processSymbol(symbol: vscode.DocumentSymbol): JSDocNode {
         // 获取 symbol 前的 JSDoc 注释
         const startLine = symbol.range.start.line;
         let jsdoc = '';
@@ -86,15 +86,26 @@ async function generateJSDocOutlineFromSymbols(document: vscode.TextDocument): P
                 break;
             }
         }
-        if (!jsdoc) return null;
-        // 解析 JSDoc 内容
-        const comment = jsdoc.replace(/^\/\*\*|\*\/$/g, '').split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
-        const summary = comment.find(l => l && !l.startsWith('@')) || '';
-        const tags = comment.filter(l => l.startsWith('@')).join('\n');
+        let label: string;
+        let description: string;
+        let tooltip: string;
+        if (jsdoc) {
+            // 解析 JSDoc 内容
+            const comment = jsdoc.replace(/^\/\*\*|\*\/$/g, '').split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
+            const summary = comment.find(l => l && !l.startsWith('@')) || '';
+            const tags = comment.filter(l => l.startsWith('@')).join('\n');
+            label = summary;
+            description = symbol.name + (symbol.detail ? ' ' + symbol.detail : '');
+            tooltip = tags;
+        } else {
+            label = symbol.name;
+            description = '';
+            tooltip = '';
+        }
         const node: JSDocNode = {
-            label: summary,
-            description: symbol.name + (symbol.detail ? ' ' + symbol.detail : ''),
-            tooltip: tags,
+            label,
+            description,
+            tooltip,
             line: symbol.range.start.line,
         };
         if (symbol.children && symbol.children.length > 0) {
@@ -103,12 +114,8 @@ async function generateJSDocOutlineFromSymbols(document: vscode.TextDocument): P
         }
         return node;
     }
-    // 只收录有 JSDoc 的 symbol
-    const result: JSDocNode[] = [];
-    for (const sym of symbols) {
-        const node = processSymbol(sym);
-        if (node) result.push(node);
-    }
+    // 所有 symbol 都收录
+    const result: JSDocNode[] = symbols.map(processSymbol);
     return result;
 }
 

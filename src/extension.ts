@@ -194,7 +194,16 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     vscode.window.onDidChangeActiveTextEditor(updateOutline, null, context.subscriptions);
-    vscode.workspace.onDidChangeTextDocument(updateOutline, null, context.subscriptions);
+    vscode.workspace.onDidChangeTextDocument(e => {
+        const editor = vscode.window.activeTextEditor;
+        if (editor && e.document === editor.document) {
+            updateOutline();
+        }
+    }, null, context.subscriptions);
+    // 监听主大纲解析完成事件，尝试立即解析当前文档
+    vscode.languages.onDidChangeDiagnostics(() => {
+        updateOutline();
+    }, null, context.subscriptions);
     updateOutline();
 }
 

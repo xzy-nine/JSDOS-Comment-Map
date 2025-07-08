@@ -2,21 +2,26 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
+// 支持树结构的节点类型
+interface JSDocNode {
+    label: string; // summary
+    description: string; // 签名
+    tooltip: string; // @项
+    line: number;
+    children?: JSDocNode[];
+}
+
 class JSDocTreeItem extends vscode.TreeItem {
     constructor(
-        public readonly label: string, // summary
-        public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-        public readonly line: number,
-        public readonly description: string, // 函数/类签名
-        public readonly tags: string
+        public readonly node: JSDocNode
     ) {
-        super(label, collapsibleState);
-        this.description = description; // 显示函数/类签名
-        this.tooltip = tags;    // 鼠标悬浮显示 @param/@returns 等
+        super(node.label, node.children && node.children.length > 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
+        this.description = node.description;
+        this.tooltip = node.tooltip;
         this.command = {
             command: 'xzynine-jsdoc-comment-outline.revealLine',
             title: '',
-            arguments: [line]
+            arguments: [node.line]
         };
     }
 }
@@ -24,37 +29,87 @@ class JSDocTreeItem extends vscode.TreeItem {
 class JSDocOutlineProvider implements vscode.TreeDataProvider<JSDocTreeItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<JSDocTreeItem | undefined | void> = new vscode.EventEmitter<JSDocTreeItem | undefined | void>();
     readonly onDidChangeTreeData: vscode.Event<JSDocTreeItem | undefined | void> = this._onDidChangeTreeData.event;
-    private items: JSDocTreeItem[] = [];
+    private items: JSDocNode[] = [];
 
-    refresh(items: JSDocTreeItem[]): void {
+    refresh(items: JSDocNode[]): void {
         this.items = items;
         this._onDidChangeTreeData.fire();
     }
 
     getTreeItem(element: JSDocTreeItem): vscode.TreeItem {
+        // 添加右键菜单命令
+        element.contextValue = 'jsdocItem';
         return element;
     }
 
     getChildren(element?: JSDocTreeItem): Thenable<JSDocTreeItem[]> {
         if (!element) {
-            return Promise.resolve(this.items);
+            return Promise.resolve(this.items.map(n => new JSDocTreeItem(n)));
+        }
+        if (element.node.children) {
+            return Promise.resolve(element.node.children.map(n => new JSDocTreeItem(n)));
         }
         return Promise.resolve([]);
     }
 }
 
-function parseJSDocComments(text: string): JSDocTreeItem[] {
-    const regex = /\/\*\*([\s\S]*?)\*\/(?:\s*\n)?(export\s+)?(async\s+)?(function|class|const|let|var)\s+([\w$]+)/g;
-    const items: JSDocTreeItem[] = [];
-    let match;
-    while ((match = regex.exec(text)) !== null) {
+function parseJSDocComments(text: string): JSDocNode[] {
+    const items: JSDocNode[] = [];
+    const classMap: Record<string, JSDocNode> = {};
+    // 先处理所有 class 及其成员
+    const classBodyRegex = /\/\*\*([\s\S]*?)\*\/\s*class\s+([\w$]+)[^{]*{([\s\S]*?)^}/gm;
+    let match: RegExpExecArray | null;
+    while ((match = classBodyRegex.exec(text)) !== null) {
+        const [, classComment, className, classBody] = match;
+        const classStart = text.slice(0, match.index).split('\n').length - 1;
+        const classLines = classComment.split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
+        const classSummary = classLines.find(l => l && !l.startsWith('@')) || '';
+        const classTags = classLines.filter(l => l.startsWith('@')).join('\n');
+        const classNode: JSDocNode = {
+            label: classSummary,
+            description: `class ${className}`,
+            tooltip: classTags,
+            line: classStart,
+            children: []
+        };
+        // 解析类体内成员
+        const memberRegex = /\/\*\*([\s\S]*?)\*\/\s*(constructor|[\w$]+)\s*\(([^)]*)\)/g;
+        let m: RegExpExecArray | null;
+        while ((m = memberRegex.exec(classBody)) !== null) {
+            const [full, memberComment, memberName] = m;
+            const memberLine = classStart + classBody.slice(0, m.index).split('\n').length;
+            const memberLines = memberComment.split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
+            const memberSummary = memberLines.find(l => l && !l.startsWith('@')) || '';
+            const memberTags = memberLines.filter(l => l.startsWith('@')).join('\n');
+            const memberNode: JSDocNode = {
+                label: memberSummary,
+                description: memberName === 'constructor' ? 'constructor' : `method ${memberName}`,
+                tooltip: memberTags,
+                line: memberLine
+            };
+            classNode.children!.push(memberNode);
+        }
+        classMap[className] = classNode;
+        items.push(classNode);
+    }
+
+    // 处理顶级函数等
+    const topRegex = /\/\*\*([\s\S]*?)\*\/\s*(export\s+)?(async\s+)?(function|const|let|var)\s+([\w$]+)/g;
+    while ((match = topRegex.exec(text)) !== null) {
         const [, comment, , , type, name] = match;
+        // 跳过已被 class 处理的内容
+        if (Object.values(classMap).some(cls => match!.index > text.indexOf(cls.description))) continue;
         const line = text.slice(0, match.index).split('\n').length - 1;
         const lines = comment.split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
         const summary = lines.find(l => l && !l.startsWith('@')) || '';
         const tags = lines.filter(l => l.startsWith('@')).join('\n');
         const signature = `${type} ${name}`;
-        items.push(new JSDocTreeItem(summary, vscode.TreeItemCollapsibleState.None, line, signature, tags));
+        items.push({
+            label: summary,
+            description: signature,
+            tooltip: tags,
+            line
+        });
     }
     return items;
 }
@@ -87,6 +142,37 @@ export function activate(context: vscode.ExtensionContext) {
                 editor.selection = new vscode.Selection(pos, pos);
                 editor.revealRange(new vscode.Range(pos, pos));
             }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('xzynine-jsdoc-comment-outline.copyTitleDesc', (item: JSDocTreeItem) => {
+            const text = `${item.label} ${item.description}`.trim();
+            vscode.env.clipboard.writeText(text);
+            vscode.window.showInformationMessage('已复制大纲标题和副标题！');
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('xzynine-jsdoc-comment-outline.copyAllTitleDesc', () => {
+            function collect(node: JSDocNode, indent = 0, isLast = true, prefix = ''): string[] {
+                let branch = '';
+                if (indent > 0) {
+                    branch = prefix + (isLast ? '└─' : '├─');
+                }
+                const line = `${branch}${node.label} ${node.description}`;
+                let children: string[] = [];
+                if (node.children && node.children.length > 0) {
+                    const newPrefix = prefix + (indent > 0 ? (isLast ? '  ' : '│ ') : '');
+                    node.children.forEach((child, idx) => {
+                        children = children.concat(collect(child, indent + 1, idx === node.children!.length - 1, newPrefix));
+                    });
+                }
+                return [line, ...children];
+            }
+            const all = outlineProvider['items'].flatMap((node, idx, arr) => collect(node, 0, idx === arr.length - 1));
+            vscode.env.clipboard.writeText(all.join('\n'));
+            vscode.window.showInformationMessage('已复制全部大纲标题和副标题（含树状符号）！');
         })
     );
 

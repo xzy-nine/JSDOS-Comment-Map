@@ -20,6 +20,14 @@
       {
         "command": "xzynine-jsdoc-comment-outline.revealLine",
         "title": "在编辑器中定位到 JSDoc 项"
+      },
+      {
+        "command": "xzynine-jsdoc-comment-outline.copyTitleDesc",
+        "title": "复制大纲标题和副标题"
+      },
+      {
+        "command": "xzynine-jsdoc-comment-outline.copyAllTitleDesc",
+        "title": "复制全部大纲标题和副标题"
       }
     ],
     "views": {
@@ -27,6 +35,22 @@
         {
           "id": "jsdocCommentOutline",
           "name": "JSDoc 注释大纲"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "xzynine-jsdoc-comment-outline.copyAllTitleDesc",
+          "when": "view == jsdocCommentOutline",
+          "group": "navigation@100"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "xzynine-jsdoc-comment-outline.copyTitleDesc",
+          "when": "view == jsdocCommentOutline && viewItem == jsdocItem",
+          "group": "inline"
         }
       ]
     }

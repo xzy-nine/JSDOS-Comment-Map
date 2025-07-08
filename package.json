@@ -12,6 +12,23 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "jsdocCommentSidebar",
+          "title": "JSDoc 注释大纲",
+          "icon": "media/jsdoc.svg"
+        }
+      ]
+    },
+    "views": {
+      "jsdocCommentSidebar": [
+        {
+          "id": "jsdocCommentOutline",
+          "name": "JSDoc 注释大纲"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "xzynine-jsdoc-comment-outline.helloWorld",
@@ -30,14 +47,6 @@
         "title": "复制全部大纲标题和副标题"
       }
     ],
-    "views": {
-      "explorer": [
-        {
-          "id": "jsdocCommentOutline",
-          "name": "JSDoc 注释大纲"
-        }
-      ]
-    },
     "menus": {
       "view/title": [
         {

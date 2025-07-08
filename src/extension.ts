@@ -13,10 +13,11 @@ interface JSDocNode {
 }
 
 class JSDocTreeItem extends vscode.TreeItem {
-    parent?: JSDocTreeItem; // 新增
+    parent?: JSDocTreeItem;
     constructor(
         public readonly node: JSDocNode,
-        parent?: JSDocTreeItem
+        parent: JSDocTreeItem | undefined,
+        extensionUri: vscode.Uri
     ) {
         super(node.label, node.children && node.children.length > 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
         this.description = node.description;
@@ -27,6 +28,18 @@ class JSDocTreeItem extends vscode.TreeItem {
             arguments: [node.line]
         };
         this.parent = parent;
+        // 设置不同层级的彩色图标，循环使用 3 种颜色
+        let level = 1;
+        let p = parent;
+        while (p) {
+            level++;
+            p = p.parent;
+        }
+        const colorIdx = ((level - 1) % 3) + 1;
+        this.iconPath = {
+            light: vscode.Uri.joinPath(extensionUri, 'media', `jsdoc-level${colorIdx}.svg`),
+            dark: vscode.Uri.joinPath(extensionUri, 'media', `jsdoc-level${colorIdx}.svg`)
+        };
     }
 }
 
@@ -36,6 +49,8 @@ class JSDocOutlineProvider implements vscode.TreeDataProvider<JSDocTreeItem> {
     private items: JSDocNode[] = [];
     private itemMap: Map<string, JSDocTreeItem> = new Map(); // key: line+label
 
+    constructor(private extensionUri: vscode.Uri) {}
+
     refresh(items: JSDocNode[]): void {
         this.items = items;
         this.itemMap.clear();
@@ -43,7 +58,7 @@ class JSDocOutlineProvider implements vscode.TreeDataProvider<JSDocTreeItem> {
         const cache = (nodes: JSDocNode[], parentItem?: JSDocTreeItem) => {
             for (const n of nodes) {
                 n.parent = parentItem?.node;
-                const item = new JSDocTreeItem(n, parentItem);
+                const item = new JSDocTreeItem(n, parentItem, this.extensionUri);
                 this.itemMap.set(`${n.line}|${n.label}`, item);
                 if (n.children) cache(n.children, item);
             }
@@ -161,7 +176,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 
-    const outlineProvider = new JSDocOutlineProvider();
+    const outlineProvider = new JSDocOutlineProvider(context.extensionUri);
     const treeView = vscode.window.createTreeView('jsdocCommentOutline', {
         treeDataProvider: outlineProvider,
         showCollapseAll: true

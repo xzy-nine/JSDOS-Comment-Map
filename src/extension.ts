@@ -9,11 +9,14 @@ interface JSDocNode {
     tooltip: string; // @项
     line: number;
     children?: JSDocNode[];
+    parent?: JSDocNode; // 新增
 }
 
 class JSDocTreeItem extends vscode.TreeItem {
+    parent?: JSDocTreeItem; // 新增
     constructor(
-        public readonly node: JSDocNode
+        public readonly node: JSDocNode,
+        parent?: JSDocTreeItem
     ) {
         super(node.label, node.children && node.children.length > 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
         this.description = node.description;
@@ -23,6 +26,7 @@ class JSDocTreeItem extends vscode.TreeItem {
             title: '',
             arguments: [node.line]
         };
+        this.parent = parent;
     }
 }
 
@@ -30,26 +34,47 @@ class JSDocOutlineProvider implements vscode.TreeDataProvider<JSDocTreeItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<JSDocTreeItem | undefined | void> = new vscode.EventEmitter<JSDocTreeItem | undefined | void>();
     readonly onDidChangeTreeData: vscode.Event<JSDocTreeItem | undefined | void> = this._onDidChangeTreeData.event;
     private items: JSDocNode[] = [];
+    private itemMap: Map<string, JSDocTreeItem> = new Map(); // key: line+label
 
     refresh(items: JSDocNode[]): void {
         this.items = items;
+        this.itemMap.clear();
+        // 递归缓存所有 TreeItem，并设置 parent
+        const cache = (nodes: JSDocNode[], parentItem?: JSDocTreeItem) => {
+            for (const n of nodes) {
+                n.parent = parentItem?.node;
+                const item = new JSDocTreeItem(n, parentItem);
+                this.itemMap.set(`${n.line}|${n.label}`, item);
+                if (n.children) cache(n.children, item);
+            }
+        };
+        cache(items);
         this._onDidChangeTreeData.fire();
     }
 
     getTreeItem(element: JSDocTreeItem): vscode.TreeItem {
-        // 添加右键菜单命令
         element.contextValue = 'jsdocItem';
         return element;
     }
 
     getChildren(element?: JSDocTreeItem): Thenable<JSDocTreeItem[]> {
         if (!element) {
-            return Promise.resolve(this.items.map(n => new JSDocTreeItem(n)));
+            return Promise.resolve(this.items.map(n => this.itemMap.get(`${n.line}|${n.label}`)!));
         }
         if (element.node.children) {
-            return Promise.resolve(element.node.children.map(n => new JSDocTreeItem(n)));
+            return Promise.resolve(element.node.children.map(n => this.itemMap.get(`${n.line}|${n.label}`)!));
         }
         return Promise.resolve([]);
+    }
+
+    // 返回同一行所有节点，优先最深层
+    getTreeItemsByLine(line: number): JSDocTreeItem[] {
+        return Array.from(this.itemMap.values()).filter(item => item.node.line === line);
+    }
+
+    getParent(element: JSDocTreeItem): JSDocTreeItem | undefined {
+        if (!element.parent) return undefined;
+        return this.itemMap.get(`${element.parent.node.line}|${element.parent.node.label}`);
     }
 }
 
@@ -137,7 +162,10 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(disposable);
 
     const outlineProvider = new JSDocOutlineProvider();
-    vscode.window.registerTreeDataProvider('jsdocCommentOutline', outlineProvider);
+    const treeView = vscode.window.createTreeView('jsdocCommentOutline', {
+        treeDataProvider: outlineProvider,
+        showCollapseAll: true
+    });
 
     context.subscriptions.push(
         vscode.commands.registerCommand('xzynine-jsdoc-comment-outline.revealLine', (line: number) => {
@@ -200,9 +228,21 @@ export function activate(context: vscode.ExtensionContext) {
             updateOutline();
         }
     }, null, context.subscriptions);
-    // 监听主大纲解析完成事件，尝试立即解析当前文档
     vscode.languages.onDidChangeDiagnostics(() => {
         updateOutline();
+    }, null, context.subscriptions);
+
+    // 监听选区变化，自动高亮并展开大纲树对应节点
+    vscode.window.onDidChangeTextEditorSelection(e => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || e.textEditor !== editor) return;
+        const line = editor.selection.active.line;
+        // 优先选最深层节点
+        const treeItems = outlineProvider.getTreeItemsByLine(line);
+        if (treeItems.length > 0) {
+            const treeItem = treeItems[treeItems.length - 1];
+            treeView.reveal(treeItem, { select: true, focus: true, expand: true });
+        }
     }, null, context.subscriptions);
     updateOutline();
 }

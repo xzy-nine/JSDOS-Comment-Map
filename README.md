@@ -1,71 +1,36 @@
-# xzynine-jsdoc-comment-outline README
+# xzynine-jsdoc-comment-outline
 
-This is the README for your extension "xzynine-jsdoc-comment-outline". After writing up a brief description, we recommend including the following sections.
+xzynine-jsdoc-comment-outline 是一款为 JavaScript/TypeScript 文件提供 JSDoc 注释大纲的 VS Code 扩展。它可以自动解析文件中的 JSDoc 注释，生成结构化的树状大纲，帮助你快速浏览、定位和管理代码注释。
 
-## Features
+## 功能特性
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- 自动解析 JS/TS 文件中的 JSDoc 注释，生成树状大纲视图
+- 支持多级嵌套，彩色分层图标直观展示结构
+- 点击大纲节点可自动跳转到对应代码行
+- 支持复制单个节点或全部节点的标题与描述（支持树状符号）
+- 选区变动时自动高亮并展开对应大纲节点
+- 支持中英文注释内容
 
-For example if there is an image subfolder under your extension project workspace:
+## 使用方法
 
-\!\[feature X\]\(images/feature-x.png\)
+1. 打开任意 JavaScript 或 TypeScript 文件
+2. 在侧边栏找到“JSDoc 注释大纲”视图，自动展示当前文件的注释结构
+3. 点击节点可跳转，右键可复制标题/描述
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+## 扩展设置
 
-## Requirements
+当前版本无需额外配置。
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+## 已知问题
 
-## Extension Settings
+- 仅支持 JS/TS 文件，暂不支持其他语言
+- 依赖于 VS Code 的文档符号提供器，部分极端代码结构可能解析不完整
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
+## 发行说明
 
 ### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+- 首个版本，支持基础 JSDoc 注释大纲解析与树状展示
 
 ---
 
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+如有建议或问题，欢迎在 GitHub 提 Issue。

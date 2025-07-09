@@ -100,5 +100,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/xzyht-nine/jsdoc-comment-outline.git"
-  }
+  },
+  "icon": "media/jsdoc.png" 
 }

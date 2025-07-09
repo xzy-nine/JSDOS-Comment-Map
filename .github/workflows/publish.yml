@@ -1,10 +1,10 @@
-name: Publish VS Code Extension
+name: 发布 VS Code 扩展到store
 
 on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag to publish (e.g. v1.0.0)'
+        description: '要发布的 Release 标签（例如 v1.0.0）'
         required: false
 
 jobs:

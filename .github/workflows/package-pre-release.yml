@@ -1,4 +1,4 @@
-name: Pre-release VS Code Extension
+name: 预发布 VS Code 扩展 到 GitHub Releases
 
 on:
   workflow_dispatch:

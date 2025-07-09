@@ -234,7 +234,8 @@ export function activate(context: vscode.ExtensionContext) {
         const treeItems = outlineProvider.getTreeItemsByLine(line);
         if (treeItems.length > 0) {
             const treeItem = treeItems[treeItems.length - 1];
-            treeView.reveal(treeItem, { select: true, focus: true, expand: true });
+            // 只高亮，不聚焦树视图，避免打断编辑器操作
+            treeView.reveal(treeItem, { select: true, focus: false, expand: true });
         }
     }, null, context.subscriptions);
     updateOutline();

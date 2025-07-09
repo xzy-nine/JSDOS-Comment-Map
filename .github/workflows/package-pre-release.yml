@@ -33,7 +33,7 @@ jobs:
       - name: Create Pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.get_version.outputs.version }}-pre
+          tag_name: v-pre-release
           name: Pre-release v${{ steps.get_version.outputs.version }}
           prerelease: true
           files: '*.vsix'

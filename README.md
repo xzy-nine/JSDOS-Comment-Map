@@ -1,13 +1,12 @@
 # xzynine-jsdoc-comment-outline
 
-xzynine-jsdoc-comment-outline 是一款为 JavaScript/TypeScript 文件提供 JSDoc 注释大纲的 VS Code 扩展。它可以自动解析文件中的 JSDoc 注释，生成结构化的树状大纲，帮助你快速浏览、定位和管理代码注释。
+xzynine-jsdoc-comment-outline 是一款为 JavaScript/TypeScript 文件提供 JSDoc 注释大纲的 VS Code 扩展。它可以自动解析文件中的 JSDoc 注释，生成结构化的树状大纲，帮助你通过jsdoc的注释快速浏览、定位和管理代码。
 
 ## 功能特性
 
 - 自动解析 JS/TS 文件中的 JSDoc 注释，生成树状大纲视图
 - 支持多级嵌套，彩色分层图标直观展示结构
 - 点击大纲节点可自动跳转到对应代码行
-- 支持复制单个节点或全部节点的标题与描述（支持树状符号）
 - 选区变动时自动高亮并展开对应大纲节点
 - 支持中英文注释内容
 
@@ -25,11 +24,6 @@ xzynine-jsdoc-comment-outline 是一款为 JavaScript/TypeScript 文件提供 JS
 
 - 仅支持 JS/TS 文件，暂不支持其他语言
 - 依赖于 VS Code 的文档符号提供器，部分极端代码结构可能解析不完整
-
-## 发行说明
-
-### 1.0.0
-- 首个版本，支持基础 JSDoc 注释大纲解析与树状展示
 
 ---
 

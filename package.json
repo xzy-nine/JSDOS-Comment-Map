@@ -2,7 +2,7 @@
   "name": "xzynine-jsdoc-comment-outline",
   "displayName": "JSDoc Comment Outline",
   "description": "解析当前打开文件的 JSDoc 注释并生成大纲视图的 VS Code 扩展",
-  "version": "0.0.4",
+  "version": "0.0.7",
   "engines": {
     "vscode": "^1.101.0"
   },
@@ -39,10 +39,6 @@
         "title": "在编辑器中定位到 JSDoc 项"
       },
       {
-        "command": "xzynine-jsdoc-comment-outline.copyTitleDesc",
-        "title": "复制大纲标题和副标题"
-      },
-      {
         "command": "xzynine-jsdoc-comment-outline.copyAllTitleDesc",
         "title": "复制全部大纲标题和副标题"
       }
@@ -54,15 +50,32 @@
           "when": "view == jsdocCommentOutline",
           "group": "navigation@100"
         }
-      ],
-      "view/item/context": [
-        {
-          "command": "xzynine-jsdoc-comment-outline.copyTitleDesc",
-          "when": "view == jsdocCommentOutline && viewItem == jsdocItem",
-          "group": "inline"
-        }
       ]
-    }
+    },
+    "localization": [
+      {
+        "languageId": "en",
+        "languageName": "English",
+        "localizedLanguageName": "English",
+        "translations": [
+          {
+            "id": "package",
+            "path": "./package.nls.json"
+          }
+        ]
+      },
+      {
+        "languageId": "zh-cn",
+        "languageName": "Chinese (Simplified)",
+        "localizedLanguageName": "简体中文",
+        "translations": [
+          {
+            "id": "package",
+            "path": "./package.nls.zh-cn.json"
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -73,15 +86,15 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.101.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
+    "@types/node": "^24.0.12",
+    "@types/vscode": "^1.101.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
-    "eslint": "^9.25.1",
-    "typescript": "^5.8.3",
     "@vscode/test-cli": "^0.0.11",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3"
   },
   "publisher": "xzyht-nine",
   "repository": {

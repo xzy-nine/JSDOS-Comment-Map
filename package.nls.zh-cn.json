@@ -1,0 +1,6 @@
+{
+  "extension.displayName": "JSDOS 注释地图",
+  "extension.description": "使用 JSDoc 注释为您的 JavaScript/TypeScript 代码生成注释地图。",
+  "command.hello": "来自 JSDOS 注释地图的问候！",
+  "extension.activated": "恭喜，您的扩展 \"xzynine-jsdoc-comment-outline\" 已激活！"
+}

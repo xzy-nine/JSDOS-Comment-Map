@@ -1,6 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { l10n } from 'vscode';
 
 // 支持树结构的节点类型
 interface JSDocNode {
@@ -168,7 +169,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// 使用控制台输出诊断信息 (console.log) 和错误 (console.error)
 	// 这行代码只会在扩展激活时执行一次
-	console.log('恭喜，您的扩展 "xzynine-jsdoc-comment-outline" 已激活！');
+	console.log(l10n.t('extension.activated', '恭喜，您的扩展 "xzynine-jsdoc-comment-outline" 已激活！'));
 
 	// 该命令已在 package.json 文件中定义
 	// 现在使用 registerCommand 提供命令的实现
@@ -176,7 +177,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('xzynine-jsdoc-comment-outline.helloWorld', () => {
 		// 每次命令执行时会运行这里的代码
 		// 向用户显示消息框
-		vscode.window.showInformationMessage('Hello World from JSDoc Comment Outline!');
+		vscode.window.showInformationMessage(l10n.t('command.hello'));
 	});
 
 	context.subscriptions.push(disposable);
@@ -198,36 +199,8 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    context.subscriptions.push(
-        vscode.commands.registerCommand('xzynine-jsdoc-comment-outline.copyTitleDesc', (item: JSDocTreeItem) => {
-            const text = `${item.label} ${item.description}`.trim();
-            vscode.env.clipboard.writeText(text);
-            vscode.window.showInformationMessage('已复制大纲标题和副标题！');
-        })
-    );
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('xzynine-jsdoc-comment-outline.copyAllTitleDesc', () => {
-            function collect(node: JSDocNode, indent = 0, isLast = true, prefix = ''): string[] {
-                let branch = '';
-                if (indent > 0) {
-                    branch = prefix + (isLast ? '└─' : '├─');
-                }
-                const line = `${branch}${node.label} ${node.description}`;
-                let children: string[] = [];
-                if (node.children && node.children.length > 0) {
-                    const newPrefix = prefix + (indent > 0 ? (isLast ? '  ' : '│ ') : '');
-                    node.children.forEach((child, idx) => {
-                        children = children.concat(collect(child, indent + 1, idx === node.children!.length - 1, newPrefix));
-                    });
-                }
-                return [line, ...children];
-            }
-            const all = outlineProvider['items'].flatMap((node, idx, arr) => collect(node, 0, idx === arr.length - 1));
-            vscode.env.clipboard.writeText(all.join('\n'));
-            vscode.window.showInformationMessage('已复制全部大纲标题和副标题（含树状符号）！');
-        })
-    );
+    // 移除复制单个节点标题与描述的命令注册
+    // 移除复制全部节点标题与描述的命令注册
 
     // 修改 updateOutline，使用新方法
     function updateOutline() {

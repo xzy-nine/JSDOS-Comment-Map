@@ -1,0 +1,6 @@
+{
+  "extension.displayName": "JSDOS Comment Map",
+  "extension.description": "Generate a comment map for your JavaScript/TypeScript code using JSDoc comments.",
+  "command.hello": "Hello World from JSDOS Comment Map!",
+  "extension.activated": "Congratulations, your extension 'xzynine-jsdoc-comment-outline' is now active!"
+}

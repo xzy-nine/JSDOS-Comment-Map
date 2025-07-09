@@ -91,6 +91,11 @@ class JSDocOutlineProvider implements vscode.TreeDataProvider<JSDocTreeItem> {
         if (!element.parent) return undefined;
         return this.itemMap.get(`${element.parent.node.line}|${element.parent.node.label}`);
     }
+
+    // 公开 itemMap 只读访问器，便于外部访问
+    public getItemMap(): ReadonlyMap<string, JSDocTreeItem> {
+        return this.itemMap;
+    }
 }
 
 async function generateJSDocOutlineFromSymbols(document: vscode.TextDocument): Promise<JSDocNode[]> {
@@ -260,6 +265,43 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }, null, context.subscriptions);
     updateOutline();
+
+    // 监听大纲树节点展开事件，实现点击只展开当前节点及其子项，收起其他
+    treeView.onDidExpandElement(async (e) => {
+        // 使用 getItemMap 访问 itemMap
+        const expandedItems = Array.from(outlineProvider.getItemMap().values()).filter(item => item.collapsibleState === vscode.TreeItemCollapsibleState.Expanded);
+        // 递归收起除当前节点及其祖先、子孙外的所有节点
+        function isAncestorOrSelf(target: JSDocTreeItem, node: JSDocTreeItem): boolean {
+            let p: JSDocTreeItem | undefined = node;
+            while (p) {
+                if (p === target) return true;
+                p = p.parent;
+            }
+            return false;
+        }
+        function isDescendantOrSelf(target: JSDocTreeItem, node: JSDocTreeItem): boolean {
+            if (target === node) return true;
+            if (!target.node.children) return false;
+            return target.node.children.some(child => {
+                const childItem = outlineProvider.getItemMap().get(`${child.line}|${child.label}`);
+                return childItem && isDescendantOrSelf(childItem, node);
+            });
+        }
+        for (const item of expandedItems) {
+            if (!isAncestorOrSelf(e.element, item) && !isDescendantOrSelf(e.element, item)) {
+                // 收起
+                treeView.reveal(item, { expand: false });
+            }
+        }
+    });
+    // 默认展开所有一级节点
+    setTimeout(() => {
+        outlineProvider.getChildren().then(children => {
+            children.forEach(child => {
+                treeView.reveal(child, { expand: 2 }); // 展开两级
+            });
+        });
+    }, 500);
 }
 
 // This method is called when your extension is deactivated

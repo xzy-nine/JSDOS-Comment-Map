@@ -1,0 +1,57 @@
+name: Publish VS Code Extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to publish (e.g. v1.0.0)'
+        required: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get latest release info
+        id: get_release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = core.getInput('release_tag') || null;
+            let release;
+            if (tag) {
+              release = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag
+              });
+            } else {
+              release = await github.rest.repos.getLatestRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+            }
+            const asset = release.data.assets.find(a => a.name.endsWith('.vsix'));
+            if (!asset) throw new Error('No .vsix asset found in release');
+            core.setOutput('vsix_url', asset.browser_download_url);
+            core.setOutput('vsix_name', asset.name);
+
+      - name: Download .vsix from release
+        run: |
+          curl -L "${{ steps.get_release.outputs.vsix_url }}" -o "${{ steps.get_release.outputs.vsix_name }}"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install vsce
+        run: npm install -g @vscode/vsce
+
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          vsce publish --packagePath "${{ steps.get_release.outputs.vsix_name }}" --pat "$VSCE_PAT"

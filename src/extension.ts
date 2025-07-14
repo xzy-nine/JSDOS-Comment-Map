@@ -3,28 +3,29 @@
 import * as vscode from 'vscode';
 import { l10n } from 'vscode';
 
-// 支持树结构的节点类型
-interface JSDocNode {
+// 支持树结构的节点类型，重命名为通用 DocNode
+interface DocNode {
     label: string; // summary
     description: string; // 签名
     tooltip: string; // @项
     line: number;
-    children?: JSDocNode[];
-    parent?: JSDocNode; // 新增
+    language: string; // 新增：语言类型
+    children?: DocNode[];
+    parent?: DocNode;
 }
 
-class JSDocTreeItem extends vscode.TreeItem {
-    parent?: JSDocTreeItem;
+class DocTreeItem extends vscode.TreeItem {
+    parent?: DocTreeItem;
     constructor(
-        public readonly node: JSDocNode,
-        parent: JSDocTreeItem | undefined,
+        public readonly node: DocNode,
+        parent: DocTreeItem | undefined,
         extensionUri: vscode.Uri
     ) {
         super(node.label, node.children && node.children.length > 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
         this.description = node.description;
         this.tooltip = node.tooltip;
         this.command = {
-            command: 'xzynine-jsdoc-comment-outline.revealLine',
+            command: 'dos-comment-map.revealLine',
             title: '',
             arguments: [node.line]
         };
@@ -44,125 +45,122 @@ class JSDocTreeItem extends vscode.TreeItem {
     }
 }
 
-class JSDocOutlineProvider implements vscode.TreeDataProvider<JSDocTreeItem> {
-    private _onDidChangeTreeData: vscode.EventEmitter<JSDocTreeItem | undefined | void> = new vscode.EventEmitter<JSDocTreeItem | undefined | void>();
-    readonly onDidChangeTreeData: vscode.Event<JSDocTreeItem | undefined | void> = this._onDidChangeTreeData.event;
-    private items: JSDocNode[] = [];
-    private itemMap: Map<string, JSDocTreeItem> = new Map(); // key: line+label
+class DocOutlineProvider implements vscode.TreeDataProvider<DocTreeItem> {
+    private _onDidChangeTreeData: vscode.EventEmitter<DocTreeItem | undefined | void> = new vscode.EventEmitter<DocTreeItem | undefined | void>();
+    readonly onDidChangeTreeData: vscode.Event<DocTreeItem | undefined | void> = this._onDidChangeTreeData.event;
+    private items: DocNode[] = [];
+    private itemMap: Map<string, DocTreeItem> = new Map(); // key: line+label
 
     constructor(private extensionUri: vscode.Uri) {}
 
-    refresh(items: JSDocNode[]): void {
+    refresh(items: DocNode[]): void {
         this.items = items;
         this.itemMap.clear();
         // 递归缓存所有 TreeItem，并设置 parent
-        const cache = (nodes: JSDocNode[], parentItem?: JSDocTreeItem) => {
+        const cache = (nodes: DocNode[], parentItem?: DocTreeItem) => {
             for (const n of nodes) {
-                n.parent = parentItem?.node;
-                const item = new JSDocTreeItem(n, parentItem, this.extensionUri);
-                this.itemMap.set(`${n.line}|${n.label}`, item);
+                const item = new DocTreeItem(n, parentItem, this.extensionUri);
+                this.itemMap.set(`${n.line}-${n.label}`, item);
                 if (n.children) cache(n.children, item);
             }
         };
-        cache(items);
+        cache(this.items);
         this._onDidChangeTreeData.fire();
     }
 
-    getTreeItem(element: JSDocTreeItem): vscode.TreeItem {
-        element.contextValue = 'jsdocItem';
+    getTreeItem(element: DocTreeItem): vscode.TreeItem {
+        element.contextValue = 'docItem';
         return element;
     }
 
-    getChildren(element?: JSDocTreeItem): Thenable<JSDocTreeItem[]> {
+    getChildren(element?: DocTreeItem): Thenable<DocTreeItem[]> {
         if (!element) {
-            return Promise.resolve(this.items.map(n => this.itemMap.get(`${n.line}|${n.label}`)!));
+            return Promise.resolve(this.items.map(n => this.itemMap.get(`${n.line}-${n.label}`)!));
         }
         if (element.node.children) {
-            return Promise.resolve(element.node.children.map(n => this.itemMap.get(`${n.line}|${n.label}`)!));
+            return Promise.resolve(element.node.children.map(n => this.itemMap.get(`${n.line}-${n.label}`)!));
         }
         return Promise.resolve([]);
     }
 
-    // 返回同一行所有节点，优先最深层
-    getTreeItemsByLine(line: number): JSDocTreeItem[] {
+    getTreeItemsByLine(line: number): DocTreeItem[] {
         return Array.from(this.itemMap.values()).filter(item => item.node.line === line);
     }
 
-    getParent(element: JSDocTreeItem): JSDocTreeItem | undefined {
-        if (!element.parent) return undefined;
-        return this.itemMap.get(`${element.parent.node.line}|${element.parent.node.label}`);
+    getParent(element: DocTreeItem): DocTreeItem | undefined {
+        return element.parent;
     }
 
-    // 公开 itemMap 只读访问器，便于外部访问
-    public getItemMap(): ReadonlyMap<string, JSDocTreeItem> {
+    public getItemMap(): ReadonlyMap<string, DocTreeItem> {
         return this.itemMap;
     }
 }
 
-async function generateJSDocOutlineFromSymbols(document: vscode.TextDocument): Promise<JSDocNode[]> {
-    // 获取文档结构大纲
+// 解析 doc 注释，支持多语言
+async function generateDocOutlineFromSymbols(document: vscode.TextDocument): Promise<DocNode[]> {
+    const languageId = document.languageId;
+    // TODO: 按 languageId 调用对应编译器/工具解析注释
+    // 目前仅保留原 JSDoc 逻辑，后续扩展
     const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
         'vscode.executeDocumentSymbolProvider',
         document.uri
     );
     if (!symbols) return [];
-
-    // 递归处理 symbol
-    function processSymbol(symbol: vscode.DocumentSymbol): JSDocNode {
-        // 获取 symbol 前的 JSDoc 注释
-        const startLine = symbol.range.start.line;
-        let jsdoc = '';
-        for (let i = startLine - 1; i >= 0; i--) {
+    function processSymbol(symbol: vscode.DocumentSymbol): DocNode {
+        // 获取 symbol 前的 doc 注释
+        let doc = '';
+        let i = symbol.range.start.line - 1;
+        while (i >= 0) {
             const lineText = document.lineAt(i).text.trim();
-            if (lineText.startsWith('/**')) {
-                // 找到 JSDoc 起始
+            if (lineText.startsWith('/**') || lineText.startsWith('///') || lineText.startsWith('"""') || lineText.startsWith('<!--')) {
                 let commentLines = [lineText];
-                for (let j = i + 1; j < startLine; j++) {
+                let j = i + 1;
+                while (j < symbol.range.start.line) {
                     commentLines.push(document.lineAt(j).text.trim());
+                    j++;
                 }
-                jsdoc = commentLines.join('\n');
-                break;
-            } else if (lineText.startsWith('*/') || lineText.startsWith('*')) {
-                // 继续向上找
-                continue;
-            } else if (lineText === '' || lineText.startsWith('//')) {
-                continue;
-            } else {
-                // 非注释内容，终止
+                doc = commentLines.join('\n');
                 break;
             }
+            i--;
         }
-        let label: string;
-        let description: string;
-        let tooltip: string;
-        if (jsdoc) {
-            // 解析 JSDoc 内容
-            const comment = jsdoc.replace(/^\/\*\*|\*\/$/g, '').split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
-            const summary = comment.find(l => l && !l.startsWith('@')) || '';
-            const tags = comment.filter(l => l.startsWith('@')).join('\n');
-            label = summary;
-            description = symbol.name + (symbol.detail ? ' ' + symbol.detail : '');
-            tooltip = tags;
-        } else {
-            label = symbol.name;
-            description = '';
-            tooltip = '';
-        }
-        const node: JSDocNode = {
-            label,
-            description,
-            tooltip,
+        // 解析注释内容（可按语言扩展）
+        const comment = doc.replace(/^\/\*\*|\*\/$/g, '').split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
+        return {
+            label: symbol.name,
+            description: symbol.detail,
+            tooltip: comment.join(' '),
             line: symbol.range.start.line,
+            language: languageId,
+            children: symbol.children?.map(processSymbol)
         };
-        if (symbol.children && symbol.children.length > 0) {
-            const children = symbol.children.map(processSymbol).filter(Boolean) as JSDocNode[];
-            if (children.length > 0) node.children = children;
-        }
-        return node;
     }
-    // 所有 symbol 都收录
-    const result: JSDocNode[] = symbols.map(processSymbol);
-    return result;
+    return symbols.map(processSymbol);
+}
+
+function getSupportedDocLanguages(): string[] {
+    // VS Code 默认支持的主流 doc 注释语言
+    // 只要 VS Code 能提供 DocumentSymbolProvider，理论上都可支持
+    return [
+        'javascript',      // JSDoc
+        'typescript',      // JSDoc
+        'java',            // Javadoc
+        'python',          // docstring
+        'csharp',          // XML comments
+        'cpp',             // Doxygen
+        'c',               // Doxygen
+        'go',              // Go doc
+        'php',             // PHPDoc
+        'ruby',            // RDoc
+        'swift',           // Swift doc
+        'kotlin',          // KDoc
+        'scala',           // Scaladoc
+        'rust',            // Rust doc
+        'dart',            // Dart doc
+        'objective-c',     // Doxygen
+        'typescriptreact', // JSDoc
+        'javascriptreact', // JSDoc
+    ];
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -182,7 +180,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 
-    const outlineProvider = new JSDocOutlineProvider(context.extensionUri);
+    const outlineProvider = new DocOutlineProvider(context.extensionUri);
     const treeView = vscode.window.createTreeView('jsdocCommentOutline', {
         treeDataProvider: outlineProvider,
         showCollapseAll: true
@@ -199,14 +197,11 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    // 移除复制单个节点标题与描述的命令注册
-    // 移除复制全部节点标题与描述的命令注册
-
-    // 修改 updateOutline，使用新方法
     function updateOutline() {
         const editor = vscode.window.activeTextEditor;
-        if (editor && (editor.document.languageId === 'javascript' || editor.document.languageId === 'typescript')) {
-            generateJSDocOutlineFromSymbols(editor.document).then(items => {
+        const supported = getSupportedDocLanguages();
+        if (editor && supported.includes(editor.document.languageId)) {
+            generateDocOutlineFromSymbols(editor.document).then(items => {
                 outlineProvider.refresh(items);
             });
         } else {
@@ -245,15 +240,15 @@ export function activate(context: vscode.ExtensionContext) {
         // 使用 getItemMap 访问 itemMap
         const expandedItems = Array.from(outlineProvider.getItemMap().values()).filter(item => item.collapsibleState === vscode.TreeItemCollapsibleState.Expanded);
         // 递归收起除当前节点及其祖先、子孙外的所有节点
-        function isAncestorOrSelf(target: JSDocTreeItem, node: JSDocTreeItem): boolean {
-            let p: JSDocTreeItem | undefined = node;
+        function isAncestorOrSelf(target: DocTreeItem, node: DocTreeItem): boolean {
+            let p: DocTreeItem | undefined = node;
             while (p) {
                 if (p === target) return true;
                 p = p.parent;
             }
             return false;
         }
-        function isDescendantOrSelf(target: JSDocTreeItem, node: JSDocTreeItem): boolean {
+        function isDescendantOrSelf(target: DocTreeItem, node: DocTreeItem): boolean {
             if (target === node) return true;
             if (!target.node.children) return false;
             return target.node.children.some(child => {

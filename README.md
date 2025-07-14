@@ -1,19 +1,27 @@
-# xzynine-jsdoc-comment-outline
+# DOS Comment Map
 
-xzynine-jsdoc-comment-outline 是一款为 JavaScript/TypeScript 文件提供 JSDoc 注释大纲的 VS Code 扩展。它可以自动解析文件中的 JSDoc 注释，生成结构化的树状大纲，帮助你通过jsdoc的注释快速浏览、定位和管理代码。
+DOS Comment Map 是一款为多种编程语言文件提供 doc 注释大纲的 VS Code 扩展。它可自动解析文件中的 doc 注释（如 JSDoc、Javadoc、Python docstring、C# XML 注释等），通过对应语言的编译器或工具生成结构化的树状大纲，帮助你快速浏览、定位和管理代码。
 
 ## 功能特性
 
-- 自动解析 JS/TS 文件中的 JSDoc 注释，生成树状大纲视图
+- 自动解析多种主流语言文件中的 doc 注释，生成树状大纲视图
 - 支持多级嵌套，彩色分层图标直观展示结构
 - 点击大纲节点可自动跳转到对应代码行
 - 选区变动时自动高亮并展开对应大纲节点
 - 支持中英文注释内容
 
+## 支持语言
+
+- JavaScript/TypeScript (JSDoc)
+- Java (Javadoc)
+- Python (docstring)
+- C# (XML 注释)
+- 其他主流语言（持续扩展中）
+
 ## 使用方法
 
-1. 打开任意 JavaScript 或 TypeScript 文件
-2. 在侧边栏找到“JSDoc 注释大纲”视图，自动展示当前文件的注释结构
+1. 打开任意支持的语言文件
+2. 在侧边栏找到“DOS 注释大纲”视图，自动展示当前文件的注释结构
 3. 点击节点可跳转，右键可复制标题/描述
 
 ## 扩展设置
@@ -22,8 +30,8 @@ xzynine-jsdoc-comment-outline 是一款为 JavaScript/TypeScript 文件提供 JS
 
 ## 已知问题
 
-- 仅支持 JS/TS 文件，暂不支持其他语言
 - 依赖于 VS Code 的文档符号提供器，部分极端代码结构可能解析不完整
+- 某些语言的注释解析需安装对应编译器或工具
 
 ---
 

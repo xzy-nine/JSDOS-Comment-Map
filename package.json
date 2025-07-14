@@ -2,7 +2,7 @@
   "name": "dos-comment-map",
   "displayName": "DOS Comment Map",
   "description": "支持多语言 doc 注释解析并生成大纲视图的 VS Code 扩展，自动识别并通过对应语言编译器解析注释。",
-  "version": "0.0.9",
+  "version": "1.0.1",
   "engines": {
     "vscode": "^1.101.0"
   },
@@ -57,9 +57,49 @@
         "languageId": "en",
         "languageName": "English",
         "localizedLanguageName": "English",
-        "translations": []
+        "translations": [
+          {
+            "id": "package",
+            "path": "./package.nls.json"
+          }
+        ]
+      },
+      {
+        "languageId": "zh-cn",
+        "languageName": "Chinese (Simplified)",
+        "localizedLanguageName": "简体中文",
+        "translations": [
+          {
+            "id": "package",
+            "path": "./package.nls.zh-cn.json"
+          }
+        ]
       }
     ]
   },
-  "icon": "media/jsdoc.png"
+  "icon": "media/jsdoc.png",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.0.12",
+    "@types/vscode": "^1.101.0",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3"
+  },
+  "publisher": "xzyht-nine",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xzyht-nine/jsdoc-comment-outline.git"
+  }
 }

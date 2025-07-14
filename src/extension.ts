@@ -99,33 +99,93 @@ class DocOutlineProvider implements vscode.TreeDataProvider<DocTreeItem> {
 // 解析 doc 注释，支持多语言
 async function generateDocOutlineFromSymbols(document: vscode.TextDocument): Promise<DocNode[]> {
     const languageId = document.languageId;
-    // TODO: 按 languageId 调用对应编译器/工具解析注释
-    // 目前仅保留原 JSDoc 逻辑，后续扩展
+    // 按 languageId 调用对应编译器/工具解析注释
     const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
         'vscode.executeDocumentSymbolProvider',
         document.uri
     );
     if (!symbols) return [];
     function processSymbol(symbol: vscode.DocumentSymbol): DocNode {
-        // 获取 symbol 前的 doc 注释
         let doc = '';
         let i = symbol.range.start.line - 1;
-        while (i >= 0) {
-            const lineText = document.lineAt(i).text.trim();
-            if (lineText.startsWith('/**') || lineText.startsWith('///') || lineText.startsWith('"""') || lineText.startsWith('<!--')) {
-                let commentLines = [lineText];
-                let j = i + 1;
-                while (j < symbol.range.start.line) {
-                    commentLines.push(document.lineAt(j).text.trim());
-                    j++;
+        // 按语言类型解析注释
+        if (languageId === 'javascript' || languageId === 'typescript' || languageId === 'typescriptreact' || languageId === 'javascriptreact') {
+            // JSDoc: /** ... */
+            while (i >= 0) {
+                const lineText = document.lineAt(i).text.trim();
+                if (lineText.startsWith('/**')) {
+                    let commentLines = [lineText];
+                    let j = i + 1;
+                    while (j < symbol.range.start.line) {
+                        commentLines.push(document.lineAt(j).text.trim());
+                        j++;
+                    }
+                    doc = commentLines.join('\n');
+                    break;
                 }
-                doc = commentLines.join('\n');
-                break;
+                i--;
             }
-            i--;
+        } else if (languageId === 'python') {
+            // Python docstring: """ ... """
+            while (i >= 0) {
+                const lineText = document.lineAt(i).text.trim();
+                if (lineText.startsWith('"""')) {
+                    let commentLines = [lineText];
+                    let j = i + 1;
+                    while (j < symbol.range.start.line) {
+                        commentLines.push(document.lineAt(j).text.trim());
+                        j++;
+                    }
+                    doc = commentLines.join('\n');
+                    break;
+                }
+                i--;
+            }
+        } else if (languageId === 'java') {
+            // Javadoc: /** ... */
+            while (i >= 0) {
+                const lineText = document.lineAt(i).text.trim();
+                if (lineText.startsWith('/**')) {
+                    let commentLines = [lineText];
+                    let j = i + 1;
+                    while (j < symbol.range.start.line) {
+                        commentLines.push(document.lineAt(j).text.trim());
+                        j++;
+                    }
+                    doc = commentLines.join('\n');
+                    break;
+                }
+                i--;
+            }
+        } else {
+            // 其他语言：尝试常见注释格式
+            while (i >= 0) {
+                const lineText = document.lineAt(i).text.trim();
+                if (lineText.startsWith('/**') || lineText.startsWith('///') || lineText.startsWith('"""') || lineText.startsWith('<!--')) {
+                    let commentLines = [lineText];
+                    let j = i + 1;
+                    while (j < symbol.range.start.line) {
+                        commentLines.push(document.lineAt(j).text.trim());
+                        j++;
+                    }
+                    doc = commentLines.join('\n');
+                    break;
+                }
+                i--;
+            }
         }
         // 解析注释内容（可按语言扩展）
-        const comment = doc.replace(/^\/\*\*|\*\/$/g, '').split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
+        let comment: string[] = [];
+        if (languageId === 'python') {
+            // Python: 去除首尾 """
+            comment = doc.replace(/^"""|"""$/g, '').split('\n').map(l => l.trim());
+        } else if (languageId === 'java' || languageId === 'javascript' || languageId === 'typescript' || languageId === 'typescriptreact' || languageId === 'javascriptreact') {
+            // JSDoc/Javadoc: 去除首尾 /** */ 和 *
+            comment = doc.replace(/^\/\*\*|\*\/$/g, '').split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
+        } else {
+            // 其他语言：简单去除常见注释符号
+            comment = doc.replace(/^\/\*\*|\*\/$/g, '').replace(/^"""|"""$/g, '').split('\n').map(l => l.replace(/^\s*\* ?/, '').trim());
+        }
         return {
             label: symbol.name,
             description: symbol.detail,
@@ -165,29 +225,26 @@ function getSupportedDocLanguages(): string[] {
 
 export function activate(context: vscode.ExtensionContext) {
 
-	// 使用控制台输出诊断信息 (console.log) 和错误 (console.error)
-	// 这行代码只会在扩展激活时执行一次
-	console.log(l10n.t('extension.activated', '恭喜，您的扩展 "xzynine-jsdoc-comment-outline" 已激活！'));
+    // 使用控制台输出诊断信息 (console.log) 和错误 (console.error)
+    // 这行代码只会在扩展激活时执行一次
+    console.log(l10n.t('extension.activated', '恭喜，您的扩展 "xzynine-jsdoc-comment-outline" 已激活！'));
 
-	// 该命令已在 package.json 文件中定义
-	// 现在使用 registerCommand 提供命令的实现
-	// commandId 参数必须与 package.json 中的 command 字段匹配
-	const disposable = vscode.commands.registerCommand('xzynine-jsdoc-comment-outline.helloWorld', () => {
-		// 每次命令执行时会运行这里的代码
-		// 向用户显示消息框
-		vscode.window.showInformationMessage(l10n.t('command.hello'));
-	});
-
-	context.subscriptions.push(disposable);
+    // 该命令已在 package.json 文件中定义
+    // 现在使用 registerCommand 提供命令的实现
+    // commandId 参数必须与 package.json 中的 command 字段匹配
+    const disposable = vscode.commands.registerCommand('dos-comment-map.helloWorld', () => {
+        vscode.window.showInformationMessage(l10n.t('command.hello'));
+    });
+    context.subscriptions.push(disposable);
 
     const outlineProvider = new DocOutlineProvider(context.extensionUri);
-    const treeView = vscode.window.createTreeView('jsdocCommentOutline', {
+    const treeView = vscode.window.createTreeView('dosCommentOutline', {
         treeDataProvider: outlineProvider,
         showCollapseAll: true
     });
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('xzynine-jsdoc-comment-outline.revealLine', (line: number) => {
+        vscode.commands.registerCommand('dos-comment-map.revealLine', (line: number) => {
             const editor = vscode.window.activeTextEditor;
             if (editor) {
                 const pos = new vscode.Position(line, 0);
@@ -272,6 +329,4 @@ export function activate(context: vscode.ExtensionContext) {
         });
     }, 500);
 }
-
-// This method is called when your extension is deactivated
 export function deactivate() {}
